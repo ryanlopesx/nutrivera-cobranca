@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: nutrivera-cobranca
+    runtime: node
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: PORT
+        value: 3001
+      - key: EVOLUTION_URL
+        value: https://evolutionapi.vps7269.panel.icontainer.cloud
+      - key: EVOLUTION_APIKEY
+        value: ztDtdXQmBijCrjwNSWjXepr477a6w6rj

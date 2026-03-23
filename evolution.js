@@ -5,8 +5,8 @@ const db = require('./db');
  * Envia mensagem de texto via Evolution API
  */
 async function sendTextMessage(instance, phone, text) {
-  const evolutionUrl = db.getSetting('evolution_url');
-  const apiKey = db.getSetting('evolution_apikey');
+  const evolutionUrl = process.env.EVOLUTION_URL || db.getSetting('evolution_url');
+  const apiKey = process.env.EVOLUTION_APIKEY || db.getSetting('evolution_apikey');
 
   if (!evolutionUrl || !apiKey) {
     throw new Error('Evolution API não configurada. Vá em Configurações e informe a URL e API Key.');
