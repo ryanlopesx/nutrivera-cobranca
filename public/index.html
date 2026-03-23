@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nutrivera Cobrança</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="logo">
+        <span class="logo-icon">💬</span>
+        <span class="logo-text">Nutrivera</span>
+      </div>
+      <nav>
+        <button class="nav-btn active" data-page="clientes">
+          <span class="nav-icon">👥</span> Clientes
+        </button>
+        <button class="nav-btn" data-page="remetentes">
+          <span class="nav-icon">📱</span> Remetentes
+        </button>
+        <button class="nav-btn" data-page="mensagens">
+          <span class="nav-icon">💬</span> Mensagens
+        </button>
+        <button class="nav-btn" data-page="logs">
+          <span class="nav-icon">📋</span> Histórico
+        </button>
+        <button class="nav-btn" data-page="config">
+          <span class="nav-icon">⚙️</span> Configurações
+        </button>
+      </nav>
+      <div class="sidebar-status" id="statusBar">
+        <div class="status-item">
+          <span class="dot dot-green"></span>
+          <span id="statusText">Carregando...</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main -->
+    <main class="main">
+
+      <!-- PAGE: CLIENTES -->
+      <div class="page active" id="page-clientes">
+        <div class="page-header">
+          <div>
+            <h1>Clientes em Cobrança</h1>
+            <p class="subtitle">Gerencie os clientes que receberão mensagens automáticas</p>
+          </div>
+          <button class="btn-primary" onclick="openModal('modalAddCliente')">+ Adicionar Cliente</button>
+        </div>
+
+        <div class="stats-row" id="statsRow"></div>
+
+        <div class="card">
+          <table class="table" id="clientesTable">
+            <thead>
+              <tr>
+                <th>Nome</th>
+                <th>Telefone</th>
+                <th>Intervalo</th>
+                <th>Último Envio</th>
+                <th>Próximo Envio</th>
+                <th>Status</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody id="clientesTbody">
+              <tr><td colspan="7" class="empty">Carregando...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- PAGE: REMETENTES -->
+      <div class="page" id="page-remetentes">
+        <div class="page-header">
+          <div>
+            <h1>Números Remetentes</h1>
+            <p class="subtitle">Crie instâncias WhatsApp e conecte via QR Code. O sistema rotaciona entre elas automaticamente.</p>
+          </div>
+          <button class="btn-primary" onclick="openModal('modalCriarInstancia')">+ Nova Instância</button>
+        </div>
+        <div id="remetentesList" class="senders-grid"></div>
+      </div>
+
+      <!-- PAGE: MENSAGENS -->
+      <div class="page" id="page-mensagens">
+        <div class="page-header">
+          <div>
+            <h1>Templates de Mensagem</h1>
+            <p class="subtitle">Mensagens enviadas aleatoriamente. Use {nome} para personalizar.</p>
+          </div>
+          <button class="btn-primary" onclick="openModal('modalAddTemplate')">+ Nova Mensagem</button>
+        </div>
+        <div id="templatesList" class="templates-grid"></div>
+      </div>
+
+      <!-- PAGE: LOGS -->
+      <div class="page" id="page-logs">
+        <div class="page-header">
+          <div>
+            <h1>Histórico de Envios</h1>
+            <p class="subtitle">Registro de todas as mensagens enviadas</p>
+          </div>
+          <button class="btn-secondary" onclick="loadLogs()">🔄 Atualizar</button>
+        </div>
+        <div class="card">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Data/Hora</th>
+                <th>Cliente</th>
+                <th>Telefone</th>
+                <th>Instância</th>
+                <th>Status</th>
+                <th>Mensagem</th>
+              </tr>
+            </thead>
+            <tbody id="logsTbody">
+              <tr><td colspan="6" class="empty">Carregando...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- PAGE: CONFIG -->
+      <div class="page" id="page-config">
+        <div class="page-header">
+          <div>
+            <h1>Configurações</h1>
+            <p class="subtitle">Configurações da Evolution API</p>
+          </div>
+        </div>
+        <div class="card config-card">
+          <h3>Evolution API</h3>
+          <div class="form-group">
+            <label>URL da Evolution API</label>
+            <input type="text" id="configUrl" placeholder="http://localhost:8080" />
+          </div>
+          <div class="form-group">
+            <label>API Key</label>
+            <input type="password" id="configApiKey" placeholder="Sua chave de API" />
+            <small>A mesma chave configurada no servidor Evolution</small>
+          </div>
+          <button class="btn-primary" onclick="saveConfig()">Salvar Configurações</button>
+          <div id="configMsg" class="msg" style="display:none"></div>
+        </div>
+
+        <div class="card config-card" style="margin-top:20px">
+          <h3>Como funciona</h3>
+          <div class="info-box">
+            <p><strong>1. Remetentes:</strong> Cadastre as instâncias do Evolution (números de WhatsApp). O sistema escolhe um aleatoriamente para cada envio.</p>
+            <p><strong>2. Templates:</strong> Crie várias versões de mensagens de cobrança. Use <code>{nome}</code> para inserir o nome do cliente. O sistema sorteia um template diferente a cada envio.</p>
+            <p><strong>3. Clientes:</strong> Adicione os clientes com telefone (DDD + número) e defina de quantas em quantas horas ele deve receber mensagens.</p>
+            <p><strong>4. Automático:</strong> O sistema verifica a cada 60 segundos quem precisa receber mensagem e envia automaticamente. Para parar, clique em "Remover" na lista de clientes.</p>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- MODAL: Add Cliente -->
+  <div class="modal-overlay" id="modalAddCliente">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Adicionar Cliente</h2>
+        <button class="modal-close" onclick="closeModal('modalAddCliente')">✕</button>
+      </div>
+      <div class="form-group">
+        <label>Nome do Cliente *</label>
+        <input type="text" id="clienteNome" placeholder="João Silva" />
+      </div>
+      <div class="form-group">
+        <label>Telefone com DDD *</label>
+        <input type="text" id="clienteTel" placeholder="11999999999" maxlength="15" />
+        <small>Somente números com DDD. Ex: 11999999999</small>
+      </div>
+      <div class="form-group">
+        <label>Intervalo entre mensagens (horas) *</label>
+        <input type="number" id="clienteIntervalo" value="2" min="0.5" step="0.5" />
+        <small>Ex: 1 = a cada 1 hora, 2 = a cada 2 horas, 0.5 = a cada 30 min</small>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeModal('modalAddCliente')">Cancelar</button>
+        <button class="btn-primary" onclick="addCliente()">Adicionar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Criar Instância -->
+  <div class="modal-overlay" id="modalCriarInstancia">
+    <div class="modal" style="max-width:520px">
+      <div class="modal-header">
+        <h2>Nova Instância WhatsApp</h2>
+        <button class="modal-close" onclick="fecharCriarInstancia()">✕</button>
+      </div>
+
+      <div id="formCriarInstancia">
+        <div class="form-group">
+          <label>Rótulo (apelido)</label>
+          <input type="text" id="novaInstanciaLabel" placeholder="Ex: WhatsApp 1, Chip Principal..." />
+        </div>
+        <div class="form-group">
+          <label>Número do WhatsApp *</label>
+          <input type="text" id="novaInstanciaTelefone" placeholder="Ex: 11999999999" maxlength="15" />
+          <small>DDD + número, somente dígitos</small>
+        </div>
+        <div class="form-group">
+          <label>Nome da Instância *</label>
+          <input type="text" id="novaInstanciaNome" placeholder="Ex: fnx-01" />
+          <small>Apenas letras, números e hífen. Sem espaços.</small>
+        </div>
+        <div class="modal-footer">
+          <button class="btn-secondary" onclick="fecharCriarInstancia()">Cancelar</button>
+          <button class="btn-primary" id="btnCriarInstancia" onclick="criarInstancia()">Criar e Gerar QR Code</button>
+        </div>
+      </div>
+
+      <div id="qrcodeArea" style="display:none;text-align:center">
+        <p style="color:var(--text2);margin-bottom:16px">Escaneie o QR Code com o WhatsApp para conectar</p>
+        <div id="qrcodeImagem" style="background:#fff;padding:16px;border-radius:12px;display:inline-block;margin-bottom:16px"></div>
+        <p id="qrcodeStatus" style="color:var(--yellow);font-size:13px">Aguardando conexão...</p>
+        <div style="margin-top:16px;display:flex;gap:10px;justify-content:center">
+          <button class="btn-secondary" onclick="atualizarQr()">🔄 Atualizar QR</button>
+          <button class="btn-primary" onclick="fecharCriarInstancia()">Fechar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: QR de instância existente -->
+  <div class="modal-overlay" id="modalQrExistente">
+    <div class="modal" style="max-width:420px;text-align:center">
+      <div class="modal-header">
+        <h2 id="qrExistenteTitle">Conectar WhatsApp</h2>
+        <button class="modal-close" onclick="closeModal('modalQrExistente')">✕</button>
+      </div>
+      <p style="color:var(--text2);margin-bottom:16px">Escaneie com o WhatsApp para conectar este número</p>
+      <div id="qrExistenteImagem" style="background:#fff;padding:16px;border-radius:12px;display:inline-block;margin-bottom:16px"></div>
+      <p id="qrExistenteStatus" style="color:var(--yellow);font-size:13px">Aguardando leitura...</p>
+      <div style="margin-top:16px;display:flex;gap:10px;justify-content:center">
+        <button class="btn-secondary" onclick="reloadQrExistente()">🔄 Atualizar QR</button>
+        <button class="btn-primary" onclick="closeModal('modalQrExistente')">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Add Template -->
+  <div class="modal-overlay" id="modalAddTemplate">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Nova Mensagem Template</h2>
+        <button class="modal-close" onclick="closeModal('modalAddTemplate')">✕</button>
+      </div>
+      <div class="form-group">
+        <label>Texto da Mensagem *</label>
+        <textarea id="templateText" placeholder="Olá {nome}, você tem um pagamento pendente..." rows="5"></textarea>
+        <small>Use <strong>{nome}</strong> para inserir o nome do cliente automaticamente</small>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeModal('modalAddTemplate')">Cancelar</button>
+        <button class="btn-primary" onclick="addTemplate()">Salvar</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
