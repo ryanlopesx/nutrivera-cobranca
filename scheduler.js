@@ -17,6 +17,7 @@ function randomItem(arr) {
 function buildMessage(template, client) {
   return template.text
     .replace(/\{nome\}/gi, client.name)
+    .replace(/\{cpf\}/gi, client.cpf || '')
     .replace(/\{phone\}/gi, client.phone);
 }
 

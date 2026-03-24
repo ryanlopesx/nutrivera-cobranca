@@ -133,7 +133,7 @@ app.get('/api/clients', (req, res) => {
 });
 
 app.post('/api/clients', (req, res) => {
-  const { name, phone, interval_hours } = req.body;
+  const { name, phone, cpf, interval_hours } = req.body;
   if (!name || !phone) return res.status(400).json({ error: 'Nome e telefone são obrigatórios' });
 
   const hours = parseFloat(interval_hours) || 2;
@@ -142,7 +142,8 @@ app.post('/api/clients', (req, res) => {
   const cleanPhone = phone.replace(/\D/g, '');
   if (cleanPhone.length < 10 || cleanPhone.length > 13) return res.status(400).json({ error: 'Telefone inválido. Use DDD + número (ex: 27999999999).' });
 
-  const result = db.addClient(name.trim(), cleanPhone, hours);
+  const cleanCpf = (cpf || '').replace(/\D/g, '');
+  const result = db.addClient(name.trim(), cleanPhone, cleanCpf, hours);
   res.json({ ok: true, id: result.lastInsertRowid });
 });
 

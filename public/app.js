@@ -110,7 +110,7 @@ async function loadClientes() {
 
     tbody.innerHTML = clients.map(c => `
       <tr>
-        <td><strong>${esc(c.name)}</strong></td>
+        <td><strong>${esc(c.name)}</strong>${c.cpf ? `<br><small style="color:var(--text2)">CPF: ${formatCpf(c.cpf)}</small>` : ''}</td>
         <td>${formatPhone(c.phone)}</td>
         <td>a cada ${c.interval_hours}h</td>
         <td>${formatDate(c.last_sent)}</td>
@@ -132,6 +132,12 @@ async function loadClientes() {
   }
 }
 
+function formatCpf(c) {
+  const n = (c || '').replace(/\D/g, '');
+  if (n.length === 11) return `${n.slice(0,3)}.${n.slice(3,6)}.${n.slice(6,9)}-${n.slice(9)}`;
+  return c;
+}
+
 function formatPhone(p) {
   const n = p.replace(/\D/g, '');
   if (n.length === 11) return `(${n.slice(0,2)}) ${n.slice(2,7)}-${n.slice(7)}`;
@@ -147,16 +153,17 @@ function esc(s) {
 
 async function addCliente() {
   const name = document.getElementById('clienteNome').value.trim();
+  const cpf = document.getElementById('clienteCpf').value.trim();
   const phone = document.getElementById('clienteTel').value.trim();
   const interval_hours = parseFloat(document.getElementById('clienteIntervalo').value);
 
-  if (!name || !phone) return toast('Preencha nome e telefone', 'error');
+  if (!name || !phone || !cpf) return toast('Preencha nome, CPF e telefone', 'error');
 
   try {
     const r = await fetch(`${API}/api/clients`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, phone, interval_hours }),
+      body: JSON.stringify({ name, cpf, phone, interval_hours }),
     });
     const d = await r.json();
     if (!r.ok) return toast(d.error || 'Erro ao adicionar', 'error');
@@ -164,6 +171,7 @@ async function addCliente() {
     toast(`${name} adicionado com sucesso!`);
     closeModal('modalAddCliente');
     document.getElementById('clienteNome').value = '';
+    document.getElementById('clienteCpf').value = '';
     document.getElementById('clienteTel').value = '';
     document.getElementById('clienteIntervalo').value = '2';
     loadClientes();

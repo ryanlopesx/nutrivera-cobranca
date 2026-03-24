@@ -22,16 +22,36 @@ function load() {
     // Adicionar templates de exemplo
     const data = JSON.parse(JSON.stringify(INITIAL));
     const templateTexts = [
-      '⚠️ AVISO IMPORTANTE — {nome}, seu CPF será negativado no Serasa e SPC nas próximas 48 horas referente ao débito com a Nutrivera. Para evitar restrições no seu nome, regularize AGORA. Responda esta mensagem.',
-      '🔴 {nome}, comunicamos que o seu débito com a Nutrivera está prestes a ser encaminhado ao Serasa. A negativação do seu CPF pode impedir financiamentos, cartões e crédito. Evite isso — entre em contato imediatamente.',
-      '❗ {nome}, última oportunidade antes da negativação. Seu nome será incluído no Serasa e SPC por débito em aberto com a Nutrivera. Regularize hoje e evite prejuízos maiores. Fale conosco agora.',
-      '⚠️ Nutrivera Cobranças — {nome}, informamos que seu CPF está em processo de negativação no Serasa por falta de pagamento. Após a negativação, seu score de crédito será afetado. Regularize antes que seja tarde.',
-      '🚨 {nome}, seu débito com a Nutrivera foi encaminhado ao setor jurídico. Caso não haja pagamento em 24h, seu CPF será negativado no Serasa, SPC e Boa Vista. Não ignore este aviso. Responda agora para negociar.',
-      '❌ DÉBITO EM ABERTO — {nome}, a Nutrivera informa que seu valor encontra-se vencido. Seu CPF será protestado e negativado nos órgãos de proteção ao crédito. Entre em contato URGENTE para evitar maiores consequências.',
-      '⚠️ {nome}, este é um aviso formal da Nutrivera. Seu débito não foi quitado e seu nome será negativado no Serasa em breve. A negativação fica registrada por até 5 anos. Regularize agora antes que isso aconteça.',
-      '🔴 ATENÇÃO {nome} — Nutrivera Cobranças. Você possui débito em aberto. Estamos comunicando que o processo de negativação do seu CPF no Serasa já foi iniciado. Para cancelar, efetue o pagamento e nos envie o comprovante.',
-      '❗ {nome}, a Nutrivera já protocolou a negativação do seu CPF junto ao Serasa. Você tem até hoje para regularizar e cancelar o processo. Após esse prazo não será possível reverter. Fale conosco agora mesmo.',
-      '🚨 Nutrivera — {nome}, comunicamos que seu débito foi registrado para negativação. Seu CPF constará no Serasa, impedindo acesso a crédito, financiamentos e abertura de contas. Para cancelar regularize agora.',
+      '{nome} | CPF: {cpf}\n\nEste contato refere-se a uma pendência financeira vinculada a um pedido do Erecton Men já entregue e confirmado.\nÉ necessário retorno imediato para regularização do pagamento. 📞+5511959777425',
+      '{nome} | CPF: {cpf}\n\nIdentificamos pendência de pagamento referente a pedido do Erecton Men devidamente entregue.\nSolicitamos retorno para regularização. 📞+5511959777425',
+      '{nome} | CPF: {cpf}\n\nPedido do Erecton Men entregue e confirmado permanece com pagamento em aberto.\nÉ necessário retorno para regularização. 📞+5511959777425',
+      '{nome} | CPF: {cpf}\n\nConsta em sistema pedido do Erecton Men entregue com pendência financeira ativa.\nFavor retornar para regularização. 📞+5511959777425',
+      '{nome} | CPF: {cpf}\n\nReferente ao Erecton Men: pedido entregue e pagamento não identificado até o momento.\nNecessário retorno imediato. 📞+5511959777425',
+      '{nome} | CPF: {cpf}\n\nPedido do Erecton Men foi entregue conforme contratado e segue com pendência de pagamento.\nAguardamos retorno para regularização. 📞+5511959777425',
+      '{nome} | CPF: {cpf}\n\nPendência financeira identificada referente a pedido do Erecton Men já entregue.\nRetorno necessário para regularização. 📞+5511959777425',
+      '{nome} | CPF: {cpf}\n\nPedido do Erecton Men entregue e confirmado permanece sem quitação.\nSolicitamos retorno imediato. 📞+5511959777425',
+      '{nome} | CPF: {cpf}\n\nRegistro de entrega do Erecton Men consta confirmado, porém sem pagamento.\nNecessária regularização imediata. 📞+5511959777425',
+      '{nome} | CPF: {cpf}\n\nPedido do Erecton Men foi devidamente entregue e permanece com pendência financeira.\nRetorne para regularização. 📞+5511959777425',
+      '{nome} | CPF: {cpf}\n\nConsta em sistema entrega confirmada do Erecton Men com pagamento pendente.\nFavor retornar para regularização. 📞+5511959777425',
+      '{nome} | CPF: {cpf}\n\nPedido do Erecton Men entregue conforme contratação segue sem pagamento registrado.\nNecessário retorno imediato. 📞+5511959777425',
+      '{nome} | CPF: {cpf}\n\nPendência referente ao Erecton Men permanece ativa após confirmação de entrega.\nAguardamos retorno para regularização. 📞+5511959777425',
+      '{nome} | CPF: {cpf}\n\nPedido do Erecton Men entregue e vinculado a pagamento ainda não realizado.\nRetorne para regularização. 📞+5511959777425',
+      '{nome} | CPF: {cpf}\n\nEntrega do Erecton Men confirmada e pagamento não identificado.\nRegularização necessária. 📞+5511959777425',
+      '{nome} | CPF: {cpf}\n\nPendência financeira ativa referente a pedido do Erecton Men já entregue.\nFavor retornar imediatamente. 📞+5511959777425',
+      '{nome} | CPF: {cpf}\n\nPedido do Erecton Men entregue e confirmado permanece sem regularização de pagamento.\nRetorno necessário. 📞+5511959777425',
+      '{nome} | CPF: {cpf}\n\nConsta entrega do Erecton Men e ausência de quitação até o momento.\nNecessária regularização imediata. 📞+5511959777425',
+      '{nome} | CPF: {cpf}\n\nPedido do Erecton Men foi entregue e segue com pagamento em aberto.\nAguardamos retorno para regularização. 📞+5511959777425',
+      '{nome} | CPF: {cpf}\n\nRegistro de entrega do Erecton Men confirmado, com pendência financeira ativa.\nFavor retornar. 📞+5511959777425',
+      '{nome} | CPF: {cpf}\n\nPedido do Erecton Men entregue conforme contratado permanece sem pagamento.\nNecessária regularização. 📞+5511959777425',
+      '{nome} | CPF: {cpf}\n\nPendência identificada referente a pedido do Erecton Men já entregue.\nRetorne para regularização. 📞+5511959777425',
+      '{nome} | CPF: {cpf}\n\nConsta entrega confirmada do Erecton Men e ausência de pagamento.\nRegularização necessária. 📞+5511959777425',
+      '{nome} | CPF: {cpf}\n\nPedido do Erecton Men entregue e vinculado a pendência financeira ativa.\nSolicitamos retorno imediato. 📞+5511959777425',
+      '{nome} | CPF: {cpf}\n\nEntrega do Erecton Men confirmada em sistema com pagamento não realizado.\nFavor retornar. 📞+5511959777425',
+      '{nome} | CPF: {cpf}\n\nPedido do Erecton Men já entregue permanece com pendência de pagamento.\nNecessária regularização. 📞+5511959777425',
+      '{nome} | CPF: {cpf}\n\nConsta em sistema entrega do Erecton Men com pagamento em aberto.\nRetorno necessário. 📞+5511959777425',
+      '{nome} | CPF: {cpf}\n\nPendência financeira referente ao Erecton Men permanece ativa após entrega confirmada.\nAguardamos retorno. 📞+5511959777425',
+      '{nome} | CPF: {cpf}\n\nPedido do Erecton Men entregue conforme registro permanece sem quitação.\nRegularização necessária. 📞+5511959777425',
+      '{nome} | CPF: {cpf}\n\nIdentificada pendência de pagamento referente ao Erecton Men já entregue.\nSolicitamos retorno imediato para regularização. 📞+5511959777425',
     ];
     const now = Math.floor(Date.now() / 1000);
     templateTexts.forEach(text => {
@@ -100,9 +120,9 @@ module.exports = {
   // Clients
   getClients() { return load().clients.slice().reverse(); },
   getActiveClients() { return load().clients.filter(c => c.active); },
-  addClient(name, phone, interval_hours) {
+  addClient(name, phone, cpf, interval_hours) {
     const d = load();
-    d.clients.push({ id: d._nextId.clients++, name, phone, interval_hours, active: 1, last_sent: 0, created_at: nowTs() });
+    d.clients.push({ id: d._nextId.clients++, name, phone, cpf: cpf || '', interval_hours, active: 1, last_sent: 0, created_at: nowTs() });
     save(d);
   },
   removeClient(id) {
