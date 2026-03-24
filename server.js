@@ -185,5 +185,14 @@ app.get('*', (req, res) => {
 // Iniciar
 app.listen(PORT, () => {
   console.log(`\n🚀 Sistema de Cobrança rodando em http://localhost:${PORT}\n`);
+
+  // Cadastrar remetentes padrão via env var (ex: DEFAULT_SENDERS=A1,A2,A3)
+  if (process.env.DEFAULT_SENDERS) {
+    const names = process.env.DEFAULT_SENDERS.split(',').map(s => s.trim()).filter(Boolean);
+    names.forEach(name => {
+      try { db.addSender(name, name); console.log(`Remetente cadastrado: ${name}`); } catch (e) {}
+    });
+  }
+
   scheduler.start();
 });

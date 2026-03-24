@@ -11,3 +11,5 @@ services:
         value: https://evolutionapi.vps7269.panel.icontainer.cloud
       - key: EVOLUTION_APIKEY
         value: ztDtdXQmBijCrjwNSWjXepr477a6w6rj
+      - key: DEFAULT_SENDERS
+        value: A1,A2,A3
