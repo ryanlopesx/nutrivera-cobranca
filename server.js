@@ -1,9 +1,17 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const axios = require('axios');
 const db = require('./db');
-const { checkInstance, createInstance, getQrCode, deleteEvolutionInstance } = require('./evolution');
+const { checkInstance, createInstance, getQrCode, deleteEvolutionInstance, sendTextMessage } = require('./evolution');
 const scheduler = require('./scheduler');
+
+function getEvolutionConfig() {
+  return {
+    evolutionUrl: (process.env.EVOLUTION_URL || db.getSetting('evolution_url') || '').replace(/\/$/, ''),
+    apiKey: process.env.EVOLUTION_APIKEY || db.getSetting('evolution_apikey') || '',
+  };
+}
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -157,6 +165,36 @@ app.delete('/api/clients/:id', (req, res) => {
   res.json({ ok: true });
 });
 
+app.post('/api/clients/import', (req, res) => {
+  const { clients, interval_hours } = req.body;
+  if (!Array.isArray(clients) || clients.length === 0) {
+    return res.status(400).json({ error: 'Lista de clientes vazia ou inválida' });
+  }
+  const hours = parseFloat(interval_hours) || 2;
+  if (hours <= 0) return res.status(400).json({ error: 'Intervalo deve ser maior que 0' });
+
+  let imported = 0;
+  const errors = [];
+
+  clients.forEach((c, i) => {
+    const name = (c.name || '').trim();
+    const phone = (c.phone || '').replace(/\D/g, '');
+    const cpf = (c.cpf || '').replace(/\D/g, '');
+
+    if (!name || !phone) { errors.push(`Linha ${i + 1}: nome e telefone obrigatórios`); return; }
+    if (phone.length < 10 || phone.length > 13) { errors.push(`Linha ${i + 1}: telefone inválido (${phone})`); return; }
+
+    try {
+      db.addClient(name, phone, cpf, hours);
+      imported++;
+    } catch (e) {
+      errors.push(`Linha ${i + 1}: ${e.message}`);
+    }
+  });
+
+  res.json({ ok: true, imported, errors });
+});
+
 // ─── LOGS ───────────────────────────────────────────────────────────────────
 
 app.get('/api/logs', (req, res) => {
@@ -176,6 +214,48 @@ app.get('/api/status', (req, res) => {
     active_templates: templates.length,
     scheduler: 'rodando',
   });
+});
+
+// ─── CHAT ────────────────────────────────────────────────────────────────────
+
+app.get('/api/chat/conversations', async (req, res) => {
+  const { instance } = req.query;
+  if (!instance) return res.status(400).json({ error: 'instance obrigatório' });
+  try {
+    const { evolutionUrl, apiKey } = getEvolutionConfig();
+    const url = `${evolutionUrl}/chat/findChats/${encodeURIComponent(instance)}`;
+    const response = await axios.get(url, { headers: { 'apikey': apiKey }, timeout: 15000 });
+    res.json(response.data);
+  } catch (e) {
+    res.status(500).json({ error: e.response?.data?.message || e.message });
+  }
+});
+
+app.get('/api/chat/messages', async (req, res) => {
+  const { instance, phone } = req.query;
+  if (!instance || !phone) return res.status(400).json({ error: 'instance e phone obrigatórios' });
+  try {
+    const { evolutionUrl, apiKey } = getEvolutionConfig();
+    const url = `${evolutionUrl}/chat/findMessages/${encodeURIComponent(instance)}`;
+    const response = await axios.post(url, {
+      where: { key: { remoteJid: `${phone}@s.whatsapp.net` } },
+      limit: 50,
+    }, { headers: { 'apikey': apiKey, 'Content-Type': 'application/json' }, timeout: 15000 });
+    res.json(response.data);
+  } catch (e) {
+    res.status(500).json({ error: e.response?.data?.message || e.message });
+  }
+});
+
+app.post('/api/chat/send', async (req, res) => {
+  const { instance, phone, text } = req.body;
+  if (!instance || !phone || !text) return res.status(400).json({ error: 'instance, phone e text obrigatórios' });
+  try {
+    const result = await sendTextMessage(instance, phone, text);
+    res.json({ ok: true, result });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // ─── CATCH ALL ──────────────────────────────────────────────────────────────

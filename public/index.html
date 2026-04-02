@@ -27,6 +27,9 @@
         <button class="nav-btn" data-page="logs">
           <span class="nav-icon">📋</span> Histórico
         </button>
+        <button class="nav-btn" data-page="conversas">
+          <span class="nav-icon">💬</span> Conversas
+        </button>
         <button class="nav-btn" data-page="config">
           <span class="nav-icon">⚙️</span> Configurações
         </button>
@@ -49,7 +52,10 @@
             <h1>Clientes em Cobrança</h1>
             <p class="subtitle">Gerencie os clientes que receberão mensagens automáticas</p>
           </div>
-          <button class="btn-primary" onclick="openModal('modalAddCliente')">+ Adicionar Cliente</button>
+          <div style="display:flex;gap:10px">
+            <button class="btn-secondary" onclick="openModal('modalImportCSV')">📥 Importar CSV</button>
+            <button class="btn-primary" onclick="openModal('modalAddCliente')">+ Adicionar Cliente</button>
+          </div>
         </div>
 
         <div class="stats-row" id="statsRow"></div>
@@ -123,6 +129,33 @@
               <tr><td colspan="6" class="empty">Carregando...</td></tr>
             </tbody>
           </table>
+        </div>
+      </div>
+
+      <!-- PAGE: CONVERSAS -->
+      <div class="page" id="page-conversas">
+        <div class="page-header">
+          <div>
+            <h1>Conversas</h1>
+            <p class="subtitle">Visualize e responda conversas do WhatsApp</p>
+          </div>
+          <div style="display:flex;gap:10px;align-items:center">
+            <select id="conversasInstanceSelect" style="width:auto;min-width:180px">
+              <option value="">Selecionar instância...</option>
+            </select>
+            <button class="btn-secondary" onclick="loadConversas()">🔄 Atualizar</button>
+          </div>
+        </div>
+        <div class="chat-layout">
+          <div class="chat-list" id="chatList">
+            <div style="padding:20px;color:var(--text2);text-align:center">Selecione uma instância</div>
+          </div>
+          <div class="chat-window" id="chatWindow">
+            <div class="chat-empty-state">
+              <div style="font-size:48px">💬</div>
+              <span>Selecione uma conversa para visualizar as mensagens</span>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -269,6 +302,33 @@
       <div class="modal-footer">
         <button class="btn-secondary" onclick="closeModal('modalAddTemplate')">Cancelar</button>
         <button class="btn-primary" onclick="addTemplate()">Salvar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Import CSV -->
+  <div class="modal-overlay" id="modalImportCSV">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>📥 Importar Clientes via CSV</h2>
+        <button class="modal-close" onclick="closeModal('modalImportCSV')">✕</button>
+      </div>
+      <div class="form-group">
+        <label>Intervalo entre mensagens (horas) *</label>
+        <input type="number" id="csvIntervalo" value="2" min="0.5" step="0.5" />
+        <small>Aplicado a todos os clientes importados</small>
+      </div>
+      <div class="form-group">
+        <label>Arquivo CSV *</label>
+        <input type="file" id="csvFileInput" accept=".csv,text/csv" />
+        <small>Formato: <code>nome,telefone,cpf</code> — primeira linha pode ser cabeçalho</small>
+      </div>
+      <div id="csvPreview" style="display:none;margin-bottom:14px">
+        <div style="font-size:12px;color:var(--text2);margin-bottom:6px" id="csvPreviewInfo"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeModal('modalImportCSV')">Cancelar</button>
+        <button class="btn-primary" onclick="importCSV()">Importar</button>
       </div>
     </div>
   </div>

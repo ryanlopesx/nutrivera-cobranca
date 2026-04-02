@@ -26,6 +26,7 @@ document.querySelectorAll('.nav-btn').forEach(btn => {
     else if (page === 'remetentes') loadRemetentes();
     else if (page === 'mensagens') loadTemplates();
     else if (page === 'logs') loadLogs();
+    else if (page === 'conversas') loadConversas();
     else if (page === 'config') loadConfig();
   });
 });
@@ -520,6 +521,257 @@ async function saveConfig() {
     toast('Erro ao salvar configurações', 'error');
   }
 }
+
+// ─── IMPORT CSV ──────────────────────────────────────────────────────────────
+async function importCSV() {
+  const fileInput = document.getElementById('csvFileInput');
+  const interval_hours = parseFloat(document.getElementById('csvIntervalo').value) || 2;
+
+  if (!fileInput.files || fileInput.files.length === 0) {
+    return toast('Selecione um arquivo CSV', 'error');
+  }
+
+  const file = fileInput.files[0];
+  const text = await file.text();
+  const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+
+  if (lines.length === 0) return toast('Arquivo CSV vazio', 'error');
+
+  // Detectar se primeira linha é header
+  const firstLine = lines[0].toLowerCase();
+  const isHeader = firstLine.includes('nome') || firstLine.includes('telefone') || firstLine.includes('phone') || firstLine.includes('name');
+  const dataLines = isHeader ? lines.slice(1) : lines;
+
+  if (dataLines.length === 0) return toast('Nenhum dado encontrado no CSV', 'error');
+
+  const clients = dataLines.map(line => {
+    const parts = line.split(',').map(p => p.trim().replace(/^["']|["']$/g, ''));
+    return { name: parts[0] || '', phone: parts[1] || '', cpf: parts[2] || '' };
+  }).filter(c => c.name || c.phone);
+
+  if (clients.length === 0) return toast('Nenhum cliente válido encontrado', 'error');
+
+  try {
+    const r = await fetch(`${API}/api/clients/import`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ clients, interval_hours }),
+    });
+    const d = await r.json();
+    if (!r.ok) return toast(d.error || 'Erro ao importar', 'error');
+
+    toast(`${d.imported} cliente(s) importado(s) com sucesso!`);
+    if (d.errors && d.errors.length > 0) {
+      console.warn('Erros na importação:', d.errors);
+      toast(`${d.errors.length} linha(s) com erro — veja o console`, 'error');
+    }
+    closeModal('modalImportCSV');
+    fileInput.value = '';
+    document.getElementById('csvIntervalo').value = '2';
+    loadClientes();
+    loadStatus();
+  } catch (e) {
+    toast('Erro de conexão', 'error');
+  }
+}
+
+// ─── CONVERSAS ───────────────────────────────────────────────────────────────
+let _chatInstance = null;
+let _chatPhone = null;
+let _chatPollingTimer = null;
+
+async function loadConversas() {
+  // Popular dropdown de instâncias
+  try {
+    const r = await fetch(`${API}/api/senders`);
+    const senders = await r.json();
+    const select = document.getElementById('conversasInstanceSelect');
+    const currentVal = select.value;
+
+    select.innerHTML = '<option value="">Selecionar instância...</option>' +
+      senders.filter(s => s.active).map(s =>
+        `<option value="${esc(s.instance_name)}">${esc(s.label)}</option>`
+      ).join('');
+
+    if (currentVal) select.value = currentVal;
+  } catch {
+    toast('Erro ao carregar instâncias', 'error');
+    return;
+  }
+
+  const instance = document.getElementById('conversasInstanceSelect').value;
+  if (!instance) return;
+
+  _chatInstance = instance;
+  const listEl = document.getElementById('chatList');
+  listEl.innerHTML = '<div style="padding:20px;color:var(--text2);text-align:center">Carregando conversas...</div>';
+
+  try {
+    const r = await fetch(`${API}/api/chat/conversations?instance=${encodeURIComponent(instance)}`);
+    const data = await r.json();
+
+    const chats = Array.isArray(data) ? data : (data.chats || []);
+
+    if (chats.length === 0) {
+      listEl.innerHTML = '<div style="padding:20px;color:var(--text2);text-align:center">Nenhuma conversa encontrada</div>';
+      return;
+    }
+
+    listEl.innerHTML = chats.map(chat => {
+      const jid = chat.id || chat.remoteJid || '';
+      const phone = jid.replace('@s.whatsapp.net', '').replace('@g.us', '');
+      const name = chat.name || chat.pushName || formatPhone(phone) || phone;
+      const lastMsg = extractMsgText(chat.lastMessage || chat.lastMsg || {});
+      const ts = chat.lastMessageTimestamp || chat.updatedAt || 0;
+      const timeStr = ts ? formatChatTime(ts) : '';
+
+      return `<div class="chat-list-item" data-phone="${esc(phone)}" onclick="openChat('${esc(phone)}', '${esc(name)}')">
+        <div style="display:flex;justify-content:space-between;align-items:baseline">
+          <div class="contact-name">${esc(name)}</div>
+          <div style="font-size:10px;color:var(--text2);white-space:nowrap;margin-left:8px">${timeStr}</div>
+        </div>
+        <div class="last-msg">${esc(lastMsg || '')}</div>
+      </div>`;
+    }).join('');
+  } catch (e) {
+    listEl.innerHTML = `<div style="padding:20px;color:var(--red);text-align:center">Erro ao carregar conversas</div>`;
+    toast('Erro ao carregar conversas: ' + e.message, 'error');
+  }
+}
+
+document.getElementById('conversasInstanceSelect') && document.getElementById('conversasInstanceSelect').addEventListener('change', () => {
+  _chatPhone = null;
+  document.getElementById('chatWindow').innerHTML = `<div class="chat-empty-state"><div style="font-size:48px">💬</div><span>Selecione uma conversa para visualizar as mensagens</span></div>`;
+  loadConversas();
+});
+
+async function openChat(phone, name) {
+  _chatPhone = phone;
+
+  // Highlight active item
+  document.querySelectorAll('.chat-list-item').forEach(el => el.classList.remove('active'));
+  const item = document.querySelector(`.chat-list-item[data-phone="${phone}"]`);
+  if (item) item.classList.add('active');
+
+  await loadMessages(phone, name);
+
+  // Start polling
+  if (_chatPollingTimer) clearInterval(_chatPollingTimer);
+  _chatPollingTimer = setInterval(() => {
+    if (_chatPhone === phone && document.getElementById('page-conversas').classList.contains('active')) {
+      loadMessages(phone, name, true);
+    } else {
+      clearInterval(_chatPollingTimer);
+    }
+  }, 30000);
+}
+
+async function loadMessages(phone, name, silent = false) {
+  const windowEl = document.getElementById('chatWindow');
+
+  if (!silent) {
+    windowEl.innerHTML = `
+      <div class="chat-window-header">${esc(name)}</div>
+      <div class="chat-messages" id="chatMessages"><div style="color:var(--text2);text-align:center;padding:20px">Carregando...</div></div>
+      <div class="chat-input-area">
+        <input type="text" id="chatMsgInput" placeholder="Digite uma mensagem..." onkeydown="if(event.key==='Enter')sendChatMsg('${esc(phone)}','${esc(name)}')" />
+        <button class="btn-primary btn-sm" onclick="sendChatMsg('${esc(phone)}','${esc(name)}')">Enviar</button>
+      </div>`;
+  }
+
+  const instance = _chatInstance;
+
+  try {
+    const r = await fetch(`${API}/api/chat/messages?instance=${encodeURIComponent(instance)}&phone=${encodeURIComponent(phone)}`);
+    const data = await r.json();
+
+    const msgs = Array.isArray(data) ? data : (data.messages || []);
+    const messagesEl = document.getElementById('chatMessages');
+    if (!messagesEl) return;
+
+    if (msgs.length === 0) {
+      messagesEl.innerHTML = '<div style="color:var(--text2);text-align:center;padding:20px">Nenhuma mensagem</div>';
+      return;
+    }
+
+    messagesEl.innerHTML = msgs.map(msg => {
+      const key = msg.key || {};
+      const fromMe = key.fromMe === true;
+      const msgContent = msg.message || {};
+      const text = msgContent.conversation
+        || msgContent.extendedTextMessage?.text
+        || msgContent.imageMessage?.caption
+        || '(mídia)';
+      const ts = msg.messageTimestamp || 0;
+      const timeStr = ts ? formatChatTime(ts) : '';
+
+      return `<div class="msg-bubble ${fromMe ? 'sent' : 'received'}">
+        ${esc(text)}
+        <div class="msg-time">${timeStr}</div>
+      </div>`;
+    }).join('');
+
+    // Auto-scroll to bottom
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  } catch (e) {
+    const messagesEl = document.getElementById('chatMessages');
+    if (messagesEl) messagesEl.innerHTML = `<div style="color:var(--red);text-align:center;padding:20px">Erro ao carregar mensagens</div>`;
+  }
+}
+
+async function sendChatMsg(phone, name) {
+  const input = document.getElementById('chatMsgInput');
+  if (!input) return;
+  const text = input.value.trim();
+  if (!text) return;
+
+  input.value = '';
+  input.disabled = true;
+
+  try {
+    const r = await fetch(`${API}/api/chat/send`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ instance: _chatInstance, phone, text }),
+    });
+    const d = await r.json();
+    if (!r.ok) { toast(d.error || 'Erro ao enviar', 'error'); input.value = text; }
+    else await loadMessages(phone, name, true);
+  } catch {
+    toast('Erro de conexão', 'error');
+    input.value = text;
+  }
+  input.disabled = false;
+  input.focus();
+}
+
+function extractMsgText(msgObj) {
+  if (!msgObj) return '';
+  const msg = msgObj.message || msgObj;
+  return msg.conversation
+    || msg.extendedTextMessage?.text
+    || msg.imageMessage?.caption
+    || '';
+}
+
+function formatChatTime(ts) {
+  const d = new Date((typeof ts === 'number' && ts < 1e12 ? ts * 1000 : ts));
+  const now = new Date();
+  if (d.toDateString() === now.toDateString()) {
+    return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  }
+  return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+}
+
+// Stop polling when leaving conversas page
+document.querySelectorAll('.nav-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    if (btn.dataset.page !== 'conversas' && _chatPollingTimer) {
+      clearInterval(_chatPollingTimer);
+      _chatPollingTimer = null;
+    }
+  });
+});
 
 // ─── INIT ────────────────────────────────────────────────────────────────────
 loadClientes();
