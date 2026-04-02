@@ -620,7 +620,7 @@ async function loadConversas() {
     listEl.innerHTML = chats.map(chat => {
       const jid = chat.id || chat.remoteJid || '';
       const phone = jid.replace('@s.whatsapp.net', '').replace('@g.us', '');
-      const name = chat.name || chat.pushName || formatPhone(phone) || phone;
+      const name = chat.clientName || chat.name || chat.pushName || formatPhone(phone) || phone;
       const lastMsg = extractMsgText(chat.lastMessage || chat.lastMsg || {});
       const ts = chat.lastMessageTimestamp || chat.updatedAt || 0;
       const timeStr = ts ? formatChatTime(ts) : '';

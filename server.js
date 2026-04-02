@@ -204,7 +204,20 @@ app.get('/api/chat/conversations', async (req, res) => {
     // Filtra apenas conversas individuais (sem grupos)
     const chats = Array.isArray(r.data) ? r.data : [];
     const individual = chats.filter(c => c.remoteJid && !c.remoteJid.includes('@g.us'));
-    res.json(individual);
+
+    // Cruza com clientes cadastrados para mostrar nome
+    const clients = await db.getClients();
+    const enriched = individual.map(chat => {
+      const phone = chat.remoteJid.replace('@s.whatsapp.net', '');
+      const client = clients.find(c => {
+        const cp = c.phone.replace(/\D/g, '');
+        const cleanPhone = phone.replace(/\D/g, '');
+        return cp === cleanPhone || cp === cleanPhone.replace(/^55/, '') || ('55' + cp) === cleanPhone;
+      });
+      return { ...chat, clientName: client?.name || chat.pushName || null };
+    });
+
+    res.json(enriched);
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
