@@ -35,8 +35,8 @@ app.post('/api/senders', (req, res) => {
   const { label, instance_name } = req.body;
   if (!label || !instance_name) return res.status(400).json({ error: 'label e instance_name são obrigatórios' });
   try {
-    const result = db.addSender(label.trim(), instance_name.trim());
-    res.json({ ok: true, id: result.lastInsertRowid });
+    db.addSender(label.trim(), instance_name.trim());
+    res.json({ ok: true });
   } catch (e) {
     res.status(400).json({ error: 'instance_name já cadastrado' });
   }
@@ -111,8 +111,8 @@ app.get('/api/templates', (req, res) => {
 app.post('/api/templates', (req, res) => {
   const { text } = req.body;
   if (!text || !text.trim()) return res.status(400).json({ error: 'Texto é obrigatório' });
-  const result = db.addTemplate(text.trim());
-  res.json({ ok: true, id: result.lastInsertRowid });
+  db.addTemplate(text.trim());
+  res.json({ ok: true });
 });
 
 app.patch('/api/templates/:id/toggle', (req, res) => {
@@ -143,8 +143,8 @@ app.post('/api/clients', (req, res) => {
   if (cleanPhone.length < 10 || cleanPhone.length > 13) return res.status(400).json({ error: 'Telefone inválido. Use DDD + número (ex: 27999999999).' });
 
   const cleanCpf = (cpf || '').replace(/\D/g, '');
-  const result = db.addClient(name.trim(), cleanPhone, cleanCpf, hours);
-  res.json({ ok: true, id: result.lastInsertRowid });
+  db.addClient(name.trim(), cleanPhone, cleanCpf, hours);
+  res.json({ ok: true });
 });
 
 app.patch('/api/clients/:id/remove', (req, res) => {
