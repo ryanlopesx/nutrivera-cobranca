@@ -197,10 +197,14 @@ app.get('/api/chat/conversations', async (req, res) => {
   if (!instance) return res.status(400).json({ error: 'instance obrigatório' });
   try {
     const { url, key } = getEvolutionConfig();
-    const r = await axios.get(`${url}/chat/findChats/${encodeURIComponent(instance)}`, {
-      headers: { apikey: key }, timeout: 10000,
-    });
-    res.json(r.data);
+    const r = await axios.post(`${url}/chat/findChats/${encodeURIComponent(instance)}`,
+      { where: {}, limit: 50 },
+      { headers: { apikey: key, 'Content-Type': 'application/json' }, timeout: 10000 }
+    );
+    // Filtra apenas conversas individuais (sem grupos)
+    const chats = Array.isArray(r.data) ? r.data : [];
+    const individual = chats.filter(c => c.remoteJid && !c.remoteJid.includes('@g.us'));
+    res.json(individual);
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -213,10 +217,17 @@ app.get('/api/chat/messages', async (req, res) => {
     const { url, key } = getEvolutionConfig();
     let cleanPhone = phone.replace(/\D/g, '');
     if (!cleanPhone.startsWith('55')) cleanPhone = '55' + cleanPhone;
-    const r = await axios.post(`${url}/chat/findMessages/${encodeURIComponent(instance)}`, {
-      where: { key: { remoteJid: `${cleanPhone}@s.whatsapp.net` } }, limit: 50,
-    }, { headers: { apikey: key, 'Content-Type': 'application/json' }, timeout: 10000 });
-    res.json(r.data);
+    const jid = `${cleanPhone}@s.whatsapp.net`;
+    const r = await axios.post(`${url}/chat/findMessages/${encodeURIComponent(instance)}`,
+      { where: { key: { remoteJid: jid } }, limit: 50 },
+      { headers: { apikey: key, 'Content-Type': 'application/json' }, timeout: 10000 }
+    );
+    // Normaliza: suporta array direto ou { messages: { records: [] } }
+    const raw = r.data;
+    const records = Array.isArray(raw) ? raw
+      : Array.isArray(raw?.messages?.records) ? raw.messages.records
+      : Array.isArray(raw?.records) ? raw.records : [];
+    res.json(records);
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
