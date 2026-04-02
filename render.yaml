@@ -1,3 +1,8 @@
+databases:
+  - name: cobranca-db
+    databaseName: cobranca
+    user: cobranca
+
 services:
   - type: web
     name: nutrivera-cobranca
@@ -7,6 +12,10 @@ services:
     envVars:
       - key: PORT
         value: 3001
+      - key: DATABASE_URL
+        fromDatabase:
+          name: cobranca-db
+          property: connectionString
       - key: EVOLUTION_URL
         value: https://evolutionapi.vps7269.panel.icontainer.cloud
       - key: EVOLUTION_APIKEY

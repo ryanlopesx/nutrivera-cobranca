@@ -30,9 +30,9 @@ async function processPending() {
 
   try {
     const now = Math.floor(Date.now() / 1000);
-    const clients = db.getActiveClients();
-    const senders = db.getActiveSenders();
-    const templates = db.getActiveTemplates();
+    const clients = await db.getActiveClients();
+    const senders = await db.getActiveSenders();
+    const templates = await db.getActiveTemplates();
 
     if (senders.length === 0 || templates.length === 0) {
       isRunning = false;
@@ -54,8 +54,8 @@ async function processPending() {
         try {
           await sendTextMessage(sender.instance_name, client.phone, text);
 
-          db.updateLastSent(client.id);
-          db.addLog({
+          await db.updateLastSent(client.id);
+          await db.addLog({
             client_id: client.id,
             client_name: client.name,
             client_phone: client.phone,
@@ -67,7 +67,7 @@ async function processPending() {
           console.log(`[Scheduler] ✓ Enviado com sucesso para ${client.name}`);
         } catch (err) {
           console.error(`[Scheduler] ✗ Erro ao enviar para ${client.name}: ${err.message}`);
-          db.addLog({
+          await db.addLog({
             client_id: client.id,
             client_name: client.name,
             client_phone: client.phone,
