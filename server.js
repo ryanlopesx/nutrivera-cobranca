@@ -193,31 +193,57 @@ function getEvolutionConfig() {
 }
 
 app.get('/api/chat/conversations', async (req, res) => {
-  const { instance } = req.query;
-  if (!instance) return res.status(400).json({ error: 'instance obrigatório' });
   try {
     const { url, key } = getEvolutionConfig();
-    const r = await axios.post(`${url}/chat/findChats/${encodeURIComponent(instance)}`,
-      { where: {}, limit: 50 },
-      { headers: { apikey: key, 'Content-Type': 'application/json' }, timeout: 10000 }
-    );
-    // Filtra apenas conversas individuais (sem grupos)
-    const chats = Array.isArray(r.data) ? r.data : [];
-    const individual = chats.filter(c => c.remoteJid && !c.remoteJid.includes('@g.us'));
+    const headers = { apikey: key, 'Content-Type': 'application/json' };
 
-    // Cruza com clientes cadastrados para mostrar nome
+    // Busca todas as instâncias ativas
+    const senders = await db.getActiveSenders();
     const clients = await db.getClients();
-    const enriched = individual.map(chat => {
-      const phone = chat.remoteJid.replace('@s.whatsapp.net', '');
-      const client = clients.find(c => {
-        const cp = c.phone.replace(/\D/g, '');
-        const cleanPhone = phone.replace(/\D/g, '');
-        return cp === cleanPhone || cp === cleanPhone.replace(/^55/, '') || ('55' + cp) === cleanPhone;
-      });
-      return { ...chat, clientName: client?.name || chat.pushName || null };
+
+    // Busca conversas de todas as instâncias em paralelo
+    const results = await Promise.allSettled(
+      senders.map(sender =>
+        axios.post(`${url}/chat/findChats/${encodeURIComponent(sender.instance_name)}`,
+          { where: {}, limit: 100 },
+          { headers, timeout: 10000 }
+        ).then(r => ({ sender, chats: Array.isArray(r.data) ? r.data : [] }))
+      )
+    );
+
+    // Agrega tudo em um mapa por telefone (evita duplicatas)
+    const map = new Map();
+    for (const result of results) {
+      if (result.status !== 'fulfilled') continue;
+      const { sender, chats } = result.value;
+      for (const chat of chats) {
+        if (!chat.remoteJid || chat.remoteJid.includes('@g.us')) continue;
+        const phone = chat.remoteJid.replace('@s.whatsapp.net', '');
+        if (map.has(phone)) continue; // já tem essa conversa
+
+        const client = clients.find(c => {
+          const cp = c.phone.replace(/\D/g, '');
+          const p = phone.replace(/\D/g, '');
+          return cp === p || cp === p.replace(/^55/, '') || ('55' + cp) === p;
+        });
+
+        map.set(phone, {
+          ...chat,
+          phone,
+          instance: sender.instance_name,
+          clientName: client?.name || chat.pushName || null,
+        });
+      }
+    }
+
+    // Ordena por data da última mensagem (mais recente primeiro)
+    const all = Array.from(map.values()).sort((a, b) => {
+      const ta = new Date(a.updatedAt || 0).getTime();
+      const tb = new Date(b.updatedAt || 0).getTime();
+      return tb - ta;
     });
 
-    res.json(enriched);
+    res.json(all);
   } catch (e) {
     res.status(500).json({ error: e.message });
   }

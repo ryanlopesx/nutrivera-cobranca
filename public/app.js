@@ -579,83 +579,67 @@ async function importCSV() {
 let _chatInstance = null;
 let _chatPhone = null;
 let _chatPollingTimer = null;
+let _allChats = [];
 
 async function loadConversas() {
-  // Popular dropdown de instâncias
-  try {
-    const r = await fetch(`${API}/api/senders`);
-    const senders = await r.json();
-    const select = document.getElementById('conversasInstanceSelect');
-    const currentVal = select.value;
-
-    select.innerHTML = '<option value="">Selecionar instância...</option>' +
-      senders.filter(s => s.active).map(s =>
-        `<option value="${esc(s.instance_name)}">${esc(s.label)}</option>`
-      ).join('');
-
-    if (currentVal) select.value = currentVal;
-  } catch {
-    toast('Erro ao carregar instâncias', 'error');
-    return;
-  }
-
-  const instance = document.getElementById('conversasInstanceSelect').value;
-  if (!instance) return;
-
-  _chatInstance = instance;
   const listEl = document.getElementById('chatList');
-  listEl.innerHTML = '<div style="padding:20px;color:var(--text2);text-align:center">Carregando conversas...</div>';
+  listEl.innerHTML = '<div style="padding:20px;color:var(--text2);text-align:center">Carregando todas as conversas...</div>';
 
   try {
-    const r = await fetch(`${API}/api/chat/conversations?instance=${encodeURIComponent(instance)}`);
+    const r = await fetch(`${API}/api/chat/conversations`);
     const data = await r.json();
-
-    const chats = Array.isArray(data) ? data : (data.chats || []);
-
-    if (chats.length === 0) {
-      listEl.innerHTML = '<div style="padding:20px;color:var(--text2);text-align:center">Nenhuma conversa encontrada</div>';
-      return;
-    }
-
-    listEl.innerHTML = chats.map(chat => {
-      const jid = chat.id || chat.remoteJid || '';
-      const phone = jid.replace('@s.whatsapp.net', '').replace('@g.us', '');
-      const name = chat.clientName || chat.name || chat.pushName || formatPhone(phone) || phone;
-      const lastMsg = extractMsgText(chat.lastMessage || chat.lastMsg || {});
-      const ts = chat.lastMessageTimestamp || chat.updatedAt || 0;
-      const timeStr = ts ? formatChatTime(ts) : '';
-
-      return `<div class="chat-list-item" data-phone="${esc(phone)}" onclick="openChat('${esc(phone)}', '${esc(name)}')">
-        <div style="display:flex;justify-content:space-between;align-items:baseline">
-          <div class="contact-name">${esc(name)}</div>
-          <div style="font-size:10px;color:var(--text2);white-space:nowrap;margin-left:8px">${timeStr}</div>
-        </div>
-        <div class="last-msg">${esc(lastMsg || '')}</div>
-      </div>`;
-    }).join('');
+    _allChats = Array.isArray(data) ? data : [];
+    renderChatList(_allChats);
   } catch (e) {
-    listEl.innerHTML = `<div style="padding:20px;color:var(--red);text-align:center">Erro ao carregar conversas</div>`;
-    toast('Erro ao carregar conversas: ' + e.message, 'error');
+    listEl.innerHTML = '<div style="padding:20px;color:var(--red);text-align:center">Erro ao carregar conversas</div>';
+    toast('Erro: ' + e.message, 'error');
   }
 }
 
-document.getElementById('conversasInstanceSelect') && document.getElementById('conversasInstanceSelect').addEventListener('change', () => {
-  _chatPhone = null;
-  document.getElementById('chatWindow').innerHTML = `<div class="chat-empty-state"><div style="font-size:48px">💬</div><span>Selecione uma conversa para visualizar as mensagens</span></div>`;
-  loadConversas();
-});
+function filterConversas() {
+  const q = (document.getElementById('chatSearch')?.value || '').toLowerCase().trim();
+  if (!q) return renderChatList(_allChats);
+  const filtered = _allChats.filter(c =>
+    (c.clientName || '').toLowerCase().includes(q) ||
+    (c.phone || '').includes(q)
+  );
+  renderChatList(filtered);
+}
 
-async function openChat(phone, name) {
+function renderChatList(chats) {
+  const listEl = document.getElementById('chatList');
+  if (!chats.length) {
+    listEl.innerHTML = '<div style="padding:20px;color:var(--text2);text-align:center">Nenhuma conversa encontrada</div>';
+    return;
+  }
+  listEl.innerHTML = chats.map(chat => {
+    const phone = chat.phone || (chat.remoteJid || '').replace('@s.whatsapp.net', '');
+    const name = chat.clientName || chat.pushName || formatPhone(phone) || phone;
+    const lastMsg = extractMsgText(chat.lastMessage || {});
+    const timeStr = chat.updatedAt ? formatChatTime(chat.updatedAt) : '';
+    const instance = chat.instance || '';
+
+    return `<div class="chat-list-item" data-phone="${esc(phone)}" onclick="openChat('${esc(phone)}','${esc(name)}','${esc(instance)}')">
+      <div style="display:flex;justify-content:space-between;align-items:baseline">
+        <div class="contact-name">${esc(name)}</div>
+        <div style="font-size:10px;color:var(--text2);white-space:nowrap;margin-left:8px">${timeStr}</div>
+      </div>
+      <div class="last-msg">${esc(lastMsg || '')}</div>
+      ${instance ? `<div style="font-size:10px;color:var(--accent2);margin-top:2px">📱 ${esc(instance)}</div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+async function openChat(phone, name, instance) {
   _chatPhone = phone;
+  _chatInstance = instance;
 
-  // Highlight active item
   document.querySelectorAll('.chat-list-item').forEach(el => el.classList.remove('active'));
   const item = document.querySelector(`.chat-list-item[data-phone="${phone}"]`);
   if (item) item.classList.add('active');
 
   await loadMessages(phone, name);
 
-  // Start polling
   if (_chatPollingTimer) clearInterval(_chatPollingTimer);
   _chatPollingTimer = setInterval(() => {
     if (_chatPhone === phone && document.getElementById('page-conversas').classList.contains('active')) {

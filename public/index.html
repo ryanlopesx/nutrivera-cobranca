@@ -137,18 +137,16 @@
         <div class="page-header">
           <div>
             <h1>Conversas</h1>
-            <p class="subtitle">Visualize e responda conversas do WhatsApp</p>
+            <p class="subtitle">Todas as instâncias — ordenado por mais recente</p>
           </div>
           <div style="display:flex;gap:10px;align-items:center">
-            <select id="conversasInstanceSelect" style="width:auto;min-width:180px">
-              <option value="">Selecionar instância...</option>
-            </select>
+            <input type="text" id="chatSearch" placeholder="🔍 Buscar cliente..." style="width:220px" oninput="filterConversas()" />
             <button class="btn-secondary" onclick="loadConversas()">🔄 Atualizar</button>
           </div>
         </div>
         <div class="chat-layout">
           <div class="chat-list" id="chatList">
-            <div style="padding:20px;color:var(--text2);text-align:center">Selecione uma instância</div>
+            <div style="padding:20px;color:var(--text2);text-align:center">Carregando...</div>
           </div>
           <div class="chat-window" id="chatWindow">
             <div class="chat-empty-state">
