@@ -185,11 +185,10 @@ app.get('/api/status', async (req, res) => {
 
 // ─── CHAT ───────────────────────────────────────────────────────────────────
 
-function getEvolutionConfig() {
-  return {
-    url: (process.env.EVOLUTION_URL || '').replace(/\/$/, ''),
-    key: process.env.EVOLUTION_APIKEY || '',
-  };
+async function getEvolutionConfig() {
+  const url = process.env.EVOLUTION_URL || await db.getSetting('evolution_url') || '';
+  const key = process.env.EVOLUTION_APIKEY || await db.getSetting('evolution_apikey') || '';
+  return { url: url.replace(/\/$/, ''), key };
 }
 
 app.get('/api/chat/conversations', async (req, res) => {
