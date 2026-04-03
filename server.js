@@ -146,15 +146,22 @@ app.post('/api/clients/import', async (req, res) => {
   const hours = parseFloat(interval_hours) || 2;
   let imported = 0;
   const errors = [];
+
+  // Cadência escalonada: primeiro cliente em ~50s, cada próximo +50~90s aleatório
+  const now = Math.floor(Date.now() / 1000);
+  let sendAfter = now + 50;
+
   for (const c of clients) {
     const phone = (c.phone || '').replace(/\D/g, '');
     if (!c.name || phone.length < 10) { errors.push(`Inválido: ${c.name || '?'}`); continue; }
     try {
-      await db.addClient(c.name.trim(), phone, (c.cpf || '').replace(/\D/g, ''), hours);
+      await db.addClient(c.name.trim(), phone, (c.cpf || '').replace(/\D/g, ''), hours, sendAfter);
       imported++;
+      // Intervalo aleatório entre 50 e 90 segundos para o próximo
+      sendAfter += 50 + Math.floor(Math.random() * 40);
     } catch (e) { errors.push(c.name); }
   }
-  res.json({ ok: true, imported, errors });
+  res.json({ ok: true, imported, errors, first_send_in: '~50 segundos', cadence: '50-90s entre cada cliente' });
 });
 
 app.patch('/api/clients/:id/remove', async (req, res) => {

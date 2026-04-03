@@ -42,8 +42,9 @@ async function processPending() {
     for (const client of clients) {
       const intervalSecs = Math.floor(client.interval_hours * 3600);
       const nextSendAt = client.last_sent + intervalSecs;
+      const sendAfter = client.send_after || 0;
 
-      if (now >= nextSendAt) {
+      if (now >= nextSendAt && now >= sendAfter) {
         // Escolhe remetente e template aleatórios
         const sender = randomItem(senders);
         const template = randomItem(templates);

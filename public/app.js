@@ -64,19 +64,24 @@ function formatDate(ts) {
   return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 }
 
-function formatNextSend(lastSent, intervalHours) {
-  if (!lastSent) return '<span class="next-send now">Agora (aguardando)</span>';
-  const nextTs = lastSent + Math.floor(intervalHours * 3600);
+function formatNextSend(lastSent, intervalHours, sendAfter) {
   const now = Math.floor(Date.now() / 1000);
+
+  // Se ainda está no período de cadência (aguardando primeira mensagem)
+  if (!lastSent && sendAfter && sendAfter > now) {
+    const diff = sendAfter - now;
+    if (diff < 60) return `<span class="next-send soon">em ${diff}s</span>`;
+    return `<span class="next-send soon">em ${Math.ceil(diff / 60)} min</span>`;
+  }
+
+  if (!lastSent) return '<span class="next-send now">Aguardando...</span>';
+  const nextTs = Math.max(lastSent + Math.floor(intervalHours * 3600), sendAfter || 0);
   const diff = nextTs - now;
 
   if (diff <= 0) return '<span class="next-send now">Em breve</span>';
-  if (diff < 600) {
-    const mins = Math.ceil(diff / 60);
-    return `<span class="next-send soon">em ${mins} min</span>`;
-  }
-  const hours = (diff / 3600).toFixed(1);
-  return `<span class="next-send">em ${hours}h</span>`;
+  if (diff < 60) return `<span class="next-send soon">em ${diff}s</span>`;
+  if (diff < 3600) return `<span class="next-send soon">em ${Math.ceil(diff / 60)} min</span>`;
+  return `<span class="next-send">em ${(diff / 3600).toFixed(1)}h</span>`;
 }
 
 // ─── CLIENTES ────────────────────────────────────────────────────────────────
@@ -115,7 +120,7 @@ async function loadClientes() {
         <td>${formatPhone(c.phone)}</td>
         <td>a cada ${c.interval_hours}h</td>
         <td>${formatDate(c.last_sent)}</td>
-        <td>${c.active ? formatNextSend(c.last_sent, c.interval_hours) : '—'}</td>
+        <td>${c.active ? formatNextSend(c.last_sent, c.interval_hours, c.send_after) : '—'}</td>
         <td>${c.active
           ? '<span class="badge badge-green">Ativo</span>'
           : '<span class="badge badge-gray">Removido</span>'

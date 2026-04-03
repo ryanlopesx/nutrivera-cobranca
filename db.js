@@ -48,6 +48,7 @@ async function init() {
       interval_hours FLOAT DEFAULT 2,
       active INTEGER DEFAULT 1,
       last_sent INTEGER DEFAULT 0,
+      send_after INTEGER DEFAULT 0,
       created_at INTEGER
     )
   `);
@@ -216,10 +217,10 @@ module.exports = {
     const { rows } = await query('SELECT * FROM clients WHERE active = 1');
     return rows;
   },
-  async addClient(name, phone, cpf, interval_hours) {
+  async addClient(name, phone, cpf, interval_hours, send_after = 0) {
     await query(
-      'INSERT INTO clients (name, phone, cpf, interval_hours, active, last_sent, created_at) VALUES ($1, $2, $3, $4, 1, 0, $5)',
-      [name, phone, cpf || '', interval_hours, nowTs()]
+      'INSERT INTO clients (name, phone, cpf, interval_hours, active, last_sent, send_after, created_at) VALUES ($1, $2, $3, $4, 1, 0, $5, $6)',
+      [name, phone, cpf || '', interval_hours, send_after || 0, nowTs()]
     );
   },
   async removeClient(id) {
