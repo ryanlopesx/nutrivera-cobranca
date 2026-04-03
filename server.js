@@ -249,23 +249,11 @@ app.get('/api/chat/conversations', async (req, res) => {
 });
 
 app.get('/api/chat/messages', async (req, res) => {
-  const { instance, phone } = req.query;
-  if (!instance || !phone) return res.status(400).json({ error: 'instance e phone obrigatórios' });
+  const { phone } = req.query;
+  if (!phone) return res.status(400).json({ error: 'phone obrigatório' });
   try {
-    const { url, key } = getEvolutionConfig();
-    let cleanPhone = phone.replace(/\D/g, '');
-    if (!cleanPhone.startsWith('55')) cleanPhone = '55' + cleanPhone;
-    const jid = `${cleanPhone}@s.whatsapp.net`;
-    const r = await axios.post(`${url}/chat/findMessages/${encodeURIComponent(instance)}`,
-      { where: { key: { remoteJid: jid } }, limit: 50 },
-      { headers: { apikey: key, 'Content-Type': 'application/json' }, timeout: 10000 }
-    );
-    // Normaliza: suporta array direto ou { messages: { records: [] } }
-    const raw = r.data;
-    const records = Array.isArray(raw) ? raw
-      : Array.isArray(raw?.messages?.records) ? raw.messages.records
-      : Array.isArray(raw?.records) ? raw.records : [];
-    res.json(records);
+    const msgs = await db.getMessages(phone);
+    res.json(msgs);
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -276,9 +264,56 @@ app.post('/api/chat/send', async (req, res) => {
   if (!instance || !phone || !text) return res.status(400).json({ error: 'instance, phone e text obrigatórios' });
   try {
     const result = await sendTextMessage(instance, phone, text);
-    res.json({ ok: true, result });
+    // Salva mensagem enviada localmente
+    let cleanPhone = phone.replace(/\D/g, '');
+    if (!cleanPhone.startsWith('55')) cleanPhone = '55' + cleanPhone;
+    await db.saveMessage({
+      instance, phone: cleanPhone, from_me: true, text,
+      timestamp: Math.floor(Date.now() / 1000),
+      msg_id: result?.key?.id || `sent_${Date.now()}`,
+    });
+    res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: e.message });
+  }
+});
+
+// ─── WEBHOOK EVOLUTION ──────────────────────────────────────────────────────
+
+app.post('/api/webhook/:instance', async (req, res) => {
+  res.json({ ok: true }); // responde rápido
+  try {
+    const instance = req.params.instance;
+    const body = req.body;
+    const event = body.event || body.type;
+
+    if (event !== 'messages.upsert' && event !== 'MESSAGES_UPSERT') return;
+
+    const messages = body.data || body.messages || [];
+    const list = Array.isArray(messages) ? messages : [messages];
+
+    for (const msg of list) {
+      const key = msg.key || {};
+      const fromMe = key.fromMe === true;
+      const remoteJid = key.remoteJid || '';
+      if (!remoteJid || remoteJid.includes('@g.us')) continue;
+
+      const phone = remoteJid.replace('@s.whatsapp.net', '');
+      const msgData = msg.message || {};
+      const text = msgData.conversation
+        || msgData.extendedTextMessage?.text
+        || msgData.imageMessage?.caption
+        || null;
+      if (!text) continue;
+
+      await db.saveMessage({
+        instance, phone, from_me: fromMe, text,
+        timestamp: msg.messageTimestamp || Math.floor(Date.now() / 1000),
+        msg_id: key.id || null,
+      });
+    }
+  } catch (e) {
+    console.error('[Webhook] Erro:', e.message);
   }
 });
 
@@ -290,10 +325,38 @@ app.get('*', (req, res) => {
 
 // ─── INICIAR ────────────────────────────────────────────────────────────────
 
+async function registerWebhooks(baseUrl) {
+  try {
+    const { url, key } = await getEvolutionConfig();
+    if (!url || !key) return;
+    const senders = await db.getActiveSenders();
+    for (const s of senders) {
+      try {
+        await axios.post(`${url}/webhook/set/${encodeURIComponent(s.instance_name)}`, {
+          webhook: {
+            enabled: true,
+            url: `${baseUrl}/api/webhook/${encodeURIComponent(s.instance_name)}`,
+            webhookByEvents: false,
+            webhookBase64: false,
+            events: ['MESSAGES_UPSERT'],
+          }
+        }, { headers: { apikey: key, 'Content-Type': 'application/json' }, timeout: 8000 });
+        console.log(`[Webhook] Registrado: ${s.instance_name}`);
+      } catch (e) {
+        console.warn(`[Webhook] Falha em ${s.instance_name}: ${e.message}`);
+      }
+    }
+  } catch (e) {
+    console.warn('[Webhook] Erro ao registrar:', e.message);
+  }
+}
+
 db.init().then(() => {
   app.listen(PORT, () => {
     console.log(`\nSistema de Cobrança rodando em http://localhost:${PORT}\n`);
     scheduler.start();
+    const baseUrl = process.env.APP_URL || `http://localhost:${PORT}`;
+    registerWebhooks(baseUrl);
   });
 }).catch(err => {
   console.error('Erro ao conectar no banco:', err.message);

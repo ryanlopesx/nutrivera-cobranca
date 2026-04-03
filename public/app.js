@@ -666,7 +666,7 @@ async function loadMessages(phone, name, silent = false) {
   const instance = _chatInstance;
 
   try {
-    const r = await fetch(`${API}/api/chat/messages?instance=${encodeURIComponent(instance)}&phone=${encodeURIComponent(phone)}`);
+    const r = await fetch(`${API}/api/chat/messages?phone=${encodeURIComponent(phone)}`);
     const data = await r.json();
 
     const msgs = Array.isArray(data) ? data : (data.messages || []);
@@ -679,16 +679,9 @@ async function loadMessages(phone, name, silent = false) {
     }
 
     messagesEl.innerHTML = msgs.map(msg => {
-      const key = msg.key || {};
-      const fromMe = key.fromMe === true;
-      const msgContent = msg.message || {};
-      const text = msgContent.conversation
-        || msgContent.extendedTextMessage?.text
-        || msgContent.imageMessage?.caption
-        || '(mídia)';
-      const ts = msg.messageTimestamp || 0;
-      const timeStr = ts ? formatChatTime(ts) : '';
-
+      const fromMe = msg.from_me === true || msg.from_me === 't';
+      const text = msg.text || '(mídia)';
+      const timeStr = msg.timestamp ? formatChatTime(Number(msg.timestamp)) : '';
       return `<div class="msg-bubble ${fromMe ? 'sent' : 'received'}">
         ${esc(text)}
         <div class="msg-time">${timeStr}</div>

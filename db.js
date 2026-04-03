@@ -52,6 +52,20 @@ async function init() {
     )
   `);
   await query(`
+    CREATE TABLE IF NOT EXISTS messages (
+      id SERIAL PRIMARY KEY,
+      instance TEXT NOT NULL,
+      phone TEXT NOT NULL,
+      from_me BOOLEAN DEFAULT false,
+      text TEXT,
+      timestamp BIGINT,
+      msg_id TEXT UNIQUE,
+      created_at INTEGER
+    )
+  `);
+  await query('CREATE INDEX IF NOT EXISTS idx_messages_phone ON messages(phone)');
+
+  await query(`
     CREATE TABLE IF NOT EXISTS logs (
       id SERIAL PRIMARY KEY,
       client_id INTEGER,
@@ -216,6 +230,33 @@ module.exports = {
   },
   async deleteClient(id) {
     await query('DELETE FROM clients WHERE id = $1', [id]);
+  },
+
+  // Messages (webhook)
+  async saveMessage({ instance, phone, from_me, text, timestamp, msg_id }) {
+    const now = Math.floor(Date.now() / 1000);
+    await query(
+      `INSERT INTO messages (instance, phone, from_me, text, timestamp, msg_id, created_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7) ON CONFLICT (msg_id) DO NOTHING`,
+      [instance, phone, from_me, text, timestamp, msg_id || null, now]
+    );
+  },
+  async getMessages(phone, limit = 60) {
+    let cleanPhone = phone.replace(/\D/g, '');
+    if (!cleanPhone.startsWith('55')) cleanPhone = '55' + cleanPhone;
+    const { rows } = await query(
+      `SELECT * FROM messages WHERE phone = $1 OR phone = $2 ORDER BY timestamp ASC LIMIT $3`,
+      [cleanPhone, cleanPhone.replace(/^55/, ''), limit]
+    );
+    return rows;
+  },
+  async getRecentConversations() {
+    const { rows } = await query(`
+      SELECT DISTINCT ON (phone) phone, instance, from_me, text, timestamp
+      FROM messages
+      ORDER BY phone, timestamp DESC
+    `);
+    return rows;
   },
 
   // Logs

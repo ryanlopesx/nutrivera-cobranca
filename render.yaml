@@ -22,3 +22,5 @@ services:
         value: ztDtdXQmBijCrjwNSWjXepr477a6w6rj
       - key: DEFAULT_SENDERS
         value: A1,A2,A3
+      - key: APP_URL
+        value: https://nutrivera-cobranca.onrender.com
